@@ -5,6 +5,7 @@ export default function downloadAsPng() {
     const rect = download?.getBoundingClientRect();
 
     htmlToImage
+    //ts-ignore
       .toPng(download, {
         quality: 1,
         pixelRatio: 1,

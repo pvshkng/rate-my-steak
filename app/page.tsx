@@ -225,14 +225,12 @@ export default function Page() {
             </>
           ) : text.isSteak ? (
             <>
-              <div className="result-card-container" id="download">
+              <div className="result-card-container mt-14" id="download">
                 <div className="result-card">
-                  <h2>HERE'S HOW AI SEES YOUR STEAK</h2>
+                  <h2 className="text-black ">HERE IS HOW AI SEES YOUR STEAK</h2>
 
                   {rawImage ? (
-                    <Image
-                      width={0}
-                      height={0}
+                    <img
                       src={URL.createObjectURL(rawImage)}
                       alt="steak image"
                     />
