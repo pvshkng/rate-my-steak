@@ -1,101 +1,336 @@
+"use client";
+import downloadAsPng from "@/lib/download-as-png";
+import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
+import "./rate-my-steak.css";
 
-export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+export default function Page() {
+  const [rawImage, setRawImage] = useState(null);
+  const [text, setText] = useState(null);
+  const [toggleUploadModal, setToggleUploadModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const imageInputRef = useRef(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  function toggleModal() {
+    setToggleUploadModal(!toggleUploadModal);
+  }
+
+  function handleCloseModal(e) {
+    const modal = document.querySelector(".upload-modal-container");
+    if (modal && !modal.contains(e.target)) {
+      setToggleUploadModal(false);
+    }
+  }
+
+  useEffect(() => {
+    if (toggleUploadModal === true) {
+      document.addEventListener("click", handleCloseModal);
+      return () => {
+        document.removeEventListener("click", handleCloseModal);
+      };
+    }
+  }, [toggleUploadModal]);
+
+  async function convertImage(file, maxWidth = 500, maxHeight = 500) {
+    return new Promise((resolve, reject) => {
+      const img = document.createElement("img");
+      img.src = URL.createObjectURL(file);
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+
+        let { width, height } = img;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height *= maxWidth / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width *= maxHeight / height;
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const dataUrl = canvas.toDataURL("image/jpeg");
+        resolve(dataUrl.split(",")[1]);
+      };
+      img.onerror = reject;
+    });
+  }
+
+  function handleClickToSelectFile(event) {
+    event.preventDefault();
+    imageInputRef.current.click();
+  }
+
+  async function onSubmit(event) {
+    event.preventDefault();
+
+    if (!rawImage) {
+      return;
+    } else {
+      setIsLoading(true);
+      const base64Image = await convertImage(rawImage);
+      const response = await fetch("/api/steak/rate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ image: base64Image }),
+      });
+      const data = await response.json();
+
+      let json;
+
+      try {
+        json = JSON.parse(data.response);
+      } catch (error) {
+        console.error("Error while trying yo parse json: ", error);
+        json = {
+          isSteak: false,
+        };
+      }
+
+      setText(json);
+      setIsLoading(false);
+    }
+  }
+
+  function handleImageChange(event) {
+    const selectedImage = event.target.files[0];
+    setRawImage(selectedImage);
+  }
+
+  async function handleSelectTemplate(filename) {
+    try {
+      const response = await fetch(`images/rate-my-steak/${filename}`);
+      const blob = await response.blob();
+      const file = new File([blob], filename, { type: "image/png" });
+      setRawImage(file);
+      setToggleUploadModal(false);
+    } catch (error) {
+      console.error("Error loading template image:", error);
+    }
+  }
+
+  function handleReset() {
+    setText(null);
+    setRawImage(null);
+    if (imageInputRef.current) {
+      imageInputRef.current.value = "";
+    }
+    window.location.reload();
+  }
+
+  if (isLoading)
+    return (
+      <>
+        <div
+          className="entire-modal"
+          style={{ display: isLoading ? "block" : "none" }}
+        >
+          <div className="modal-dimmer">
+            <div className="loading-container">
+              <p>
+                <span>L</span>
+                <span>O</span>
+                <span>A</span>
+                <span>D</span>
+                <span>I</span>
+                <span>N</span>
+                <span>G</span>
+              </p>
+            </div>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+      </>
+    );
+  else
+    return (
+      <>
+        {/* START OF MODAL ELEMENT */}
+        <div
+          className="entire-modal"
+          style={{ display: toggleUploadModal ? "block" : "none" }}
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+          <div className="modal-dimmer">
+            <div className="upload-modal-container">
+              <p className="text-black">TRY OUR TEMPLATES OR USE YOUR OWN!</p>
+              <div className="steak-img-container">
+                <img
+                  alt="option"
+                  src="/images/rate-my-steak/steak-1.png"
+                  onClick={() => {
+                    handleSelectTemplate("steak-1.png");
+                  }}
+                />
+                <img
+                  alt="option"
+                  src="/images/rate-my-steak/steak-2.png"
+                  onClick={() => {
+                    handleSelectTemplate("steak-2.png");
+                  }}
+                />
+              </div>
+              <button onClick={handleClickToSelectFile}>USE MINE</button>
+            </div>
+          </div>
+        </div>
+        {/* END OF MODAL ELEMENT */}
+
+        <main className="flex flex-col items-center justify-center h-full w-full">
+          {text === null ? (
+            <>
+              <h1>RATE MY STEAK!</h1>
+
+              <div className="step-container">
+                <div className="detail-container upload" onClick={toggleModal}>
+                  <Image
+                    alt="upload-icon"
+                    width={32}
+                    height={32}
+                    src="/icon/upload.svg"
+                  />
+                  <a>
+                    {rawImage
+                      ? rawImage.name
+                      : "SELECT THE IMAGE OF YOUR JUICY CREATION"}
+                  </a>
+                </div>
+              </div>
+              <form onSubmit={onSubmit}>
+                {/* <input type="text" name="name" /> */}
+                <input
+                  type="file"
+                  ref={imageInputRef}
+                  accept="image/png, image/jpeg"
+                  onChange={handleImageChange}
+                  style={{ display: "none" }}
+                />
+
+                <div className="button-container">
+                  <button type="submit">Submit</button>
+                  <button id="reset" onClick={handleReset}>
+                    Reset
+                  </button>
+                </div>
+              </form>
+            </>
+          ) : text.isSteak ? (
+            <>
+              <div className="result-card-container" id="download">
+                <div className="result-card">
+                  <h2>HERE'S HOW AI SEES YOUR STEAK</h2>
+
+                  {rawImage ? (
+                    <Image
+                      width={0}
+                      height={0}
+                      src={URL.createObjectURL(rawImage)}
+                      alt="steak image"
+                    />
+                  ) : (
+                    ""
+                  )}
+
+                  <div className="steak-attribute-grid">
+                    <div className="attribute-container" id="doneness">
+                      <div className="attribute">
+                        <Image
+                          alt="icon"
+                          height={0}
+                          width={0}
+                          src="icon/temperature.svg"
+                        />
+                        <p>DONENESS</p>
+                      </div>
+                      <div className="rate">
+                        <p>{text.doneness}</p>
+                      </div>
+                    </div>
+
+                    <div className="attribute-container" id="appearance">
+                      <div className="attribute">
+                        <Image
+                          alt="icon"
+                          height={0}
+                          width={0}
+                          src="icon/utensils.svg"
+                        />
+                        <p>APPEARANCE</p>
+                      </div>
+                      <div className="rate">
+                        <p>{text.appearance}</p>
+                      </div>
+                    </div>
+
+                    <div className="attribute-container" id="texture">
+                      <div className="attribute">
+                        <img src="icon/drumstick.svg" />
+                        <p>TEXTURE</p>
+                      </div>
+                      <div className="rate" id="texture">
+                        <p>{text.texture}</p>
+                      </div>
+                    </div>
+
+                    <div className="attribute-container" id="juiciness">
+                      <div className="attribute">
+                        <img src="icon/droplet.svg" />
+                        <p>JUICINESS</p>
+                      </div>
+                      <div className="rate">
+                        <p>{text.juiciness}</p>
+                      </div>
+                    </div>
+
+                    <div className="attribute-container" id="overall">
+                      <div className="attribute">
+                        <img src="icon/thumbsup.svg" />
+                        <p>OVERALL</p>
+                      </div>
+                      <div className="rate">
+                        <p>{text.overall}</p>
+                      </div>
+                    </div>
+
+                    <div className="review-box">{text.description}</div>
+                  </div>
+                </div>
+              </div>
+              <div className="button-container">
+                <button onClick={downloadAsPng}>Download</button>
+                <button id="reset" onClick={handleReset}>
+                  Try again
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="result-card-container">
+              <div className="result-card">
+                <h2 className="text-black">YO! YOU CAN'T FOOL ME</h2>
+                <h2 className="text-black">THIS IS NOT STEAK!</h2>
+                {rawImage ? (
+                  <img src={URL.createObjectURL(rawImage)} alt="result image" />
+                ) : (
+                  ""
+                )}{" "}
+              </div>
+              <div className="button-container">
+                <button id="reset" onClick={handleReset}>
+                  Try again
+                </button>
+              </div>
+            </div>
+          )}
+        </main>
+      </>
+    );
 }

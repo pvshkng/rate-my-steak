@@ -11,7 +11,10 @@
   "dependencies": {
     "react": "19.0.0-rc-66855b96-20241106",
     "react-dom": "19.0.0-rc-66855b96-20241106",
-    "next": "15.0.3"
+    "next": "15.0.3",
+    "html-to-image": "^1.11.11",
+    "langchain": "^0.3.6",
+    "@langchain/google-genai": "^0.1.4"
   },
   "devDependencies": {
     "typescript": "^5",
