@@ -1,9 +1,8 @@
-import fs from "fs";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { HumanMessage } from "@langchain/core/messages";
 
-function sanitizeJSON(input) {
+function sanitizeJSON(input: string) {
   const regex = /\{([^{}]+)\}/;
   const output = input.match(regex);
   return output ? "{" + output[1] + "}" : input;
@@ -14,7 +13,7 @@ const visionModel = new ChatGoogleGenerativeAI({
   maxOutputTokens: 2048,
 });
 
-export async function POST(req) {
+export async function POST(req: Request) {
   try {
     const raw = await req.json();
     const input = [

@@ -313,7 +313,7 @@ export default function Page() {
           ) : (
             <div className="result-card-container">
               <div className="result-card">
-                <h2 className="text-black">YO! YOU CAN'T FOOL ME</h2>
+                <h2 className="text-black">YO! YOU CANNOT FOOL ME</h2>
                 <h2 className="text-black">THIS IS NOT STEAK!</h2>
                 {rawImage ? (
                   <img src={URL.createObjectURL(rawImage)} alt="result image" />
